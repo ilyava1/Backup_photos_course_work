@@ -3,126 +3,133 @@
 
 import json
 import requests
-import service_module
-import ya_module
+import module_service
+import module_ya
+from module_config import params
 from pprint import pprint
 
 
-def check_for_token(CONFIG_FILE, service_name: str, token_name: str):
+def check_for_token(service_name: str):
     """
     Функция проверки наличия токена.
 
     Функция получает на вход название сервиса, для которого требуется
-    проверить токен, и имя токена (идентификатор токена в файле конфигурации),
-    затем производит поиск токена в файле конфигурации. Если токена в файле
-    конфигурации нет, функция запрашивает токен у пользователя. Введенный
-    пользователем токен проверяется путем вызова функии обращения к веб-
-    сервису за информации о пользователе. Если обращение прошло успешно,
-    токен записывается в файл конфигурации и возвращается как результат
-    работы функции.
+    проверить токен, и производит поиск токена в модуле конфигурации. Если
+    токена нет,функция запрашивает токен у пользователя. Введенный
+    пользователем токен проверяется путем вызова функии обращения к
+    веб-сервису за информации о пользователе. Если обращение прошло успешно,
+    токен записывается в параметры программы, модуль конфигурации.
 
     :param service_name: наименование веб-сервиса, для которого будет
     проверен токен.
-    :param token_name: имя токена (идентификатор токена) в файле настроек
-    :return: токен для работы с веб-сервисом
+
+    :return: None
     """
 
     # Пытаемся читать файл настроек построчно, при нахождении имени токена
     # информируем об этом пользователя и возвращаем токен как результат
     # работы функции
-    try:
-        with open(CONFIG_FILE, 'rt', encoding='utf-8') as config:
-            settings = config.readline()
-            found_token = 0
-            found_vk_user_id = 0
-            vk_user_id = ''
-            while settings:
-                try:
-                    cf_param_name, cf_param_text, cf_param_body = (
-                        settings.split('; '))
-                except:
-                    settings = config.readline()
-                    continue
 
-                if cf_param_name == token_name:
-                    token_user = cf_param_text
-                    token_body = cf_param_body
-                    print(f'Для загрузки файлов c {service_name} будет '
-                          f'использован токен пользователя {token_user}')
-                    found_token = 1
-                    service_module.my_timeout()
-                if service_name == 'ВКонтакте' and (
-                        cf_param_name == 'vk_user_id'):
-                    vk_user_id = cf_param_body
-                    found_vk_user_id = 1
+    flag_vk_token = 0
+    flag_vk_user_id = 0
+    flag_ya_token = 0
+    for param in params:
+        if service_name == 'ВКонтакте' and param['param_name'] == 'vk_token':
+            print(f'Для загрузки файлов c {service_name} будет '
+                  f'использован токен пользователя {param["param_description"]}')
+            flag_vk_token = 1
+            print()
 
-                settings = config.readline()
+        elif service_name == 'ВКонтакте' and param['param_name'] == 'vk_user_id':
+            print(f'Для загрузки файлов c {service_name} считан '
+                  f'{param["param_description"]}')
+            flag_vk_user_id = 1
+            print()
 
-    except FileNotFoundError:
-        print('Не найден настроечный файл')
-        service_module.my_timeout()
+        elif service_name == 'Яндекс.Диск' and param['param_name'] == 'ya_token':
+            print(f'Для загрузки файлов c {service_name} будет '
+                  f'использован токен пользователя {param["param_description"]}')
+            flag_ya_token = 1
+            print()
 
-    if service_name == 'ВКонтакте' and found_token == 1 and (
-            found_vk_user_id == 1):
-        return(token_body, vk_user_id)
-    elif service_name == 'Яндекс.Диск' and found_token == 1:
-        return (token_body)
+    if service_name == 'ВКонтакте':
+        if flag_vk_token == 1 and flag_vk_user_id == 1:
+            return
+    else:
+        if flag_ya_token == 1:
+            return
 
-    print(f'Неудачная попытка считать токен и/или user_id {service_name} '
-          f'из настроечного файла')
-    service_module.my_timeout()
+    error = 1
+    while error == 1:
+        if service_name == 'ВКонтакте' and flag_vk_token == 0:
+            vk_token = input(f'Введите Ваш токен {service_name}: ')
 
-    # Если настроечный файл не найден или в нем нет нужного токена, функция
-    # запрашивает токен у пользователя и проверяет его через вызов функции
-    # получения информации о пользователе от веб-сервиса
-    param_error = 1
-    while param_error == 1:
-        if found_token == 0:
-            token_body = input(f'Введите Ваш токен {service_name}: ')
-        if service_name == 'ВКонтакте' and found_vk_user_id == 0:
+        if service_name == 'ВКонтакте'and flag_vk_user_id == 0:
             vk_user_id = input(f'Введите Ваш user_id {service_name}: ')
 
+        if service_name == 'Яндекс.Диск' and flag_ya_token == 0:
+            ya_token = input(f'Введите Ваш токен {service_name}: ')
+
         print('Подождите, идет проверка ...')
-        service_module.my_timeout()
+        module_service.my_timeout()
         if service_name == 'ВКонтакте':
             service_response_error, token_user, service_response = (
-                get_vk_user_info(token_body, vk_user_id))
+                get_vk_user_info(vk_token, vk_user_id))
         else:
             service_response_error, token_user, service_response = (
-                ya_module.get_ya_user_info(token_body))
+                module_ya.get_ya_user_info(ya_token))
 
         if service_response_error == 1:
-            print('Введены неверные токен и/или user_id')
+            print('Введены неверные данные')
             print(f'Сообщение сервиса {service_name}:')
             pprint(service_response)
             print()
             continue
         else:
-            with open(CONFIG_FILE, 'a', encoding='utf-8') as config:
-                if service_name == 'ВКонтакте':
-                    config.writelines('\n')
-                    config.writelines('# ВК-токен \n')
-                    config.writelines(f'{token_name}; {token_user}; '
-                                      f'{token_body}\n')
-                    config.writelines('# ВК-id_user \n')
-                    config.writelines(f'"vk_user_id"; "ID пользователя ВК"; '
-                                      f'{vk_user_id}\n')
-                else:
-                    config.writelines('\n')
-                    config.writelines('# Яндекс-токен \n')
-                    config.writelines(f'{token_name}; {token_user}; '
-                                      f'{token_body}\n')
+            if service_name == 'ВКонтакте' and flag_vk_token == 0:
+                vk_token_temp_dict = {}
+                vk_token_temp_dict['param_name'] = 'vk_token'
+                vk_token_temp_dict['param_description'] = token_user
+                vk_token_temp_dict['param_body'] = vk_token
+                params.append(vk_token_temp_dict)
+                flag_vk_token = 1
 
-            if service_name == 'ВКонтакте':
-                print(f'{token_user}, токен и user_id {service_name} '
-                      f'успешно проверены и сохранены в файле настроек')
-                print()
-                return (token_body, vk_user_id)
-            elif service_name == 'Яндекс.Диск':
-                print(f'{token_user}, токен {service_name} '
-                      f'успешно проверен и сохранен в файле настроек')
-                print()
-                return (token_body)
+            if service_name == 'ВКонтакте' and flag_vk_user_id == 0:
+                vk_user_id_temp_dict = {}
+                vk_user_id_temp_dict['param_name'] = 'vk_user_id'
+                vk_user_id_temp_dict['param_description'] = 'Идентификатор ' \
+                                                            'пользователя ' \
+                                                            'ВКонтакте'
+                vk_user_id_temp_dict['param_body'] = vk_user_id
+                params.append(vk_user_id_temp_dict)
+                flag_vk_user_id = 1
+
+            if service_name == 'Яндекс.Диск' and flag_ya_token == 0:
+                ya_token_temp_dict = {}
+                ya_token_temp_dict['param_name'] = 'ya_token'
+                ya_token_temp_dict['param_description'] = token_user
+                ya_token_temp_dict['param_body'] = ya_token
+                params.append(ya_token_temp_dict)
+                flag_ya_token = 1
+
+        with open('module_config.py', 'w', encoding='utf-8') as config:
+            config.writelines('params = [\n')
+            for param in params:
+                config.writelines(f'{param},\n')
+            config.writelines(']\n')
+
+        error = 0
+
+    if service_name == 'ВКонтакте':
+        print(f'{token_user}, токен и user_id {service_name} '
+              f'успешно проверены и сохранены в файле настроек')
+        print()
+        return
+    elif service_name == 'Яндекс.Диск':
+        print(f'{token_user}, токен {service_name} '
+              f'успешно проверен и сохранен в файле настроек')
+        print()
+        return
 
 
 def get_vk_user_info(vk_token, vk_user_id):
@@ -171,7 +178,7 @@ def get_vk_user_info(vk_token, vk_user_id):
         return (vk_response_error, user, service_response)
 
 
-def get_vk_photos(vk_token, vk_user_id, vk_photos_json):
+def get_vk_photos():
     """
     Функция получения списка фотографий с ВК.
 
@@ -188,26 +195,26 @@ def get_vk_photos(vk_token, vk_user_id, vk_photos_json):
     :return: json-файл с ответом сервиса ВК
     """
     base_url = 'https://api.vk.com/method/photos.get'
-    params = {
-        'access_token': vk_token,
-        'owner_id': vk_user_id,
+    request_parameters = {
+        'access_token': params[6]['param_body'],
+        'owner_id': params[7]['param_body'],
         'album_id': 'profile',
         'extended': '1',
         'photo_sizes': '1',
         'v': '5.131'
     }
     print('Идет обращение к ВК за списком фотографий профиля...')
-    service_module.my_timeout()
+    module_service.my_timeout()
 
     try:
-        response = requests.get(base_url, params)
+        response = requests.get(base_url, request_parameters)
     except NameError:
         print('Проблема коммуникации с сервером. Работа программы завершена')
         exit()
 
     if response.status_code == 200:
-        service_module.write_json(vk_photos_json, response.json())
-        print(f'Ответ сервиса получен, сохранен в файле {vk_photos_json}')
+        module_service.write_json(params[0]['param_body'], response.json())
+        print(f'Ответ сервиса получен, сохранен в файле {params[0]["param_body"]}')
     else:
         print('Ответ сервиса:')
         pprint(response.json())

@@ -5,7 +5,8 @@ import json
 import time
 import requests
 from pprint import pprint
-import service_module
+import module_service
+from module_config import params
 
 
 def get_headers(ya_token):
@@ -43,28 +44,27 @@ def get_ya_user_info(ya_token):
         return (ya_response_error, user, service_response)
 
 
-def create_folder_on_ya_disk(ya_token, yadisk_filepath):
+def create_folder_on_ya_disk():
     """
     Функция создания папки на Я.Диске
 
-    Функция получает на вход название папки и создает ее на Я.Диске
-    владельца токена. Если папка уже существует, пользователю будет
-    дано соответствующее уведомление. Выплонение программы при этом
-    будет продолжено.
-    :param ya_token: Яндекс-токен
-    :param yadisk_filepath: имя папки для создания на Диске
+    Функция пытается создать папку на Я.Диске, название папки извлекается
+    из настроек. Если папка уже существует, пользователю будет дано
+    соответствующее уведомление. Выплонение программы при этом будет
+    продолжено.
+
     :return: None
     """
     create_folder_url = "https://cloud-api.yandex.net/v1/disk/resources"
-    headers = get_headers(ya_token)
-    params = {'path': yadisk_filepath}
+    headers = get_headers(params[8]["param_body"])
+    parameters = {'path': params[4]["param_body"]}
     response = requests.put(create_folder_url, headers=headers,
-                            params=params)
+                            params=parameters)
     if response.status_code == 201:
-        print(f'Папка {yadisk_filepath} создана на Я.Диск')
+        print(f'Папка {params[4]["param_body"]} создана на Я.Диск')
         print()
     elif response.status_code == 409:
-        print(f'Папка {yadisk_filepath} уже существует на Я.Диске.')
+        print(f'Папка {params[4]["param_body"]} уже существует на Я.Диске.')
         print()
     else:
         print("Ответ сервиса на запрос по созданию папки:")
@@ -74,65 +74,54 @@ def create_folder_on_ya_disk(ya_token, yadisk_filepath):
     return
 
 
-def get_upload_link(ya_token, disk_file_path):
+def get_upload_link(disk_file_path):
     """
     Функция получения ссылки для загрузки файла на Яндекс.Диск
 
-    :param ya_token: Яндекс-токен
     :param disk_file_path: куда загружать файл на Я.Диск
     :return: словарь с ответом Я.Диска на запрос
     """
     upload_url = "https://cloud-api.yandex.net/v1/disk/resources/upload"
-    headers = get_headers(ya_token)
-    params = {"path": disk_file_path, "overwrite": "true"}
-    response = requests.get(upload_url, headers=headers, params=params)
+    headers = get_headers(params[8]["param_body"])
+    parameters = {"path": disk_file_path, "overwrite": "true"}
+    response = requests.get(upload_url, headers=headers, params=parameters)
 
     return (response.json())
 
 
-def upload_vk_photos_to_yadisk(ya_token, yadisk_filepath,
-                               vk_max_size_photos_json, dir_for_vk_photos,
-                               upload_result_json):
+def upload_vk_photos_to_yadisk():
     """
     Функция загрузки фото с локального диска на Яндекс.Диск
 
-    Функция получает на вход адрес папки на яндекс.диске, куда следует
-    загружать фото, адрес папки на локальном диске, откуда загружать фото,
-    файл с названиями и размерами фото, название файла для записи результата
-    загрузки и токен яндекса.
     Для каждого фото функция получает ссылку для загрузки, загружает файл с
-    помощью полученной ссылки, записывает результат в файл.
-    :param ya_token:
-    :param yadisk_filepath:
-    :param vk_max_size_photos_json:
-    :param dir_for_vk_photos:
-    :param upload_result_json:
-    :return:
+    помощью полученной ссылки и записывает результат в файл.
+
+    :return: None
     """
     print(f'Начата загрузка файлов с локального диска на Я.Диск в папку '
-          f'{yadisk_filepath}')
-    service_module.my_timeout()
+          f'{params[4]["param_body"]}')
+    module_service.my_timeout()
     # Список для записи результатов загрузки согласно Заданию
     # (Выходные данные, п. 1)
     upload_result = []
-    max_size_photos = json.load(open(vk_max_size_photos_json))
+    max_size_photos = json.load(open(params[1]["param_body"]))
     for photo in max_size_photos:
         # Словарь для записи результата загрузки по каждому фото
         result = {}
-        disk_file_path = yadisk_filepath + photo['photo_name'] + '.jpg'
+        disk_file_path = params[4]["param_body"] + photo['photo_name'] + '.jpg'
         print(f'Загрузка на диск файла {photo["photo_name"] + ".jpg"} начата')
         time.sleep(1)
-        href = get_upload_link(ya_token, disk_file_path=disk_file_path
+        href = get_upload_link(disk_file_path=disk_file_path
                                ).get('href', '')
         print('Ссылка для загрузки файла получена. Загрузка начата...')
         time.sleep(1)
-        filename = dir_for_vk_photos + photo['photo_name'] + '.jpg'
+        filename = params[3]["param_body"] + photo['photo_name'] + '.jpg'
 
         response = requests.put(href, data=open(filename, 'rb'))
         response.raise_for_status()
         if response.status_code == 201:
             print(f'Файл {filename} успешно загружен на Я.Диск')
-            service_module.my_timeout()
+            module_service.my_timeout()
             result['file_name'] = photo['photo_name'] + '.jpg'
             result['size'] = photo['size']
             upload_result.append(result)
@@ -141,5 +130,5 @@ def upload_vk_photos_to_yadisk(ya_token, yadisk_filepath,
                   f'Ответ сервиса:')
             pprint(response.json())
 
-    service_module.write_json(upload_result_json, upload_result)
+    module_service.write_json(params[2]["param_body"], upload_result)
     return

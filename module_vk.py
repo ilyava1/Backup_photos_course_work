@@ -5,7 +5,7 @@ import json
 import requests
 import module_service
 import module_ya
-from module_config import params
+from module_config import backup_params
 from pprint import pprint
 
 
@@ -33,24 +33,24 @@ def check_for_token(service_name: str):
     flag_vk_token = 0
     flag_vk_user_id = 0
     flag_ya_token = 0
-    for param in params:
-        if service_name == 'ВКонтакте' and param['param_name'] == 'vk_token':
-            print(f'Для загрузки файлов c {service_name} будет '
-                  f'использован токен пользователя {param["param_description"]}')
-            flag_vk_token = 1
-            print()
 
-        elif service_name == 'ВКонтакте' and param['param_name'] == 'vk_user_id':
-            print(f'Для загрузки файлов c {service_name} считан '
-                  f'{param["param_description"]}')
-            flag_vk_user_id = 1
-            print()
+    if service_name == 'ВКонтакте' and 'vk_token' in backup_params.keys():
+        print(f'Для загрузки файлов c {service_name} будет '
+              f'использован токен пользователя {backup_params["vk_token_user"]}')
+        flag_vk_token = 1
+        print()
 
-        elif service_name == 'Яндекс.Диск' and param['param_name'] == 'ya_token':
-            print(f'Для загрузки файлов c {service_name} будет '
-                  f'использован токен пользователя {param["param_description"]}')
-            flag_ya_token = 1
-            print()
+    if service_name == 'ВКонтакте' and 'vk_user_id' in backup_params.keys():
+        print(f'Для загрузки файлов c {service_name} считан '
+              f'{backup_params["vk_user_id_description"]}')
+        flag_vk_user_id = 1
+        print()
+
+    if service_name == 'Яндекс.Диск' and 'ya_token' in backup_params.keys():
+        print(f'Для загрузки файлов c {service_name} будет '
+              f'использован токен пользователя {backup_params["ya_token_user"]}')
+        flag_ya_token = 1
+        print()
 
     if service_name == 'ВКонтакте':
         if flag_vk_token == 1 and flag_vk_user_id == 1:
@@ -87,36 +87,27 @@ def check_for_token(service_name: str):
             continue
         else:
             if service_name == 'ВКонтакте' and flag_vk_token == 0:
-                vk_token_temp_dict = {}
-                vk_token_temp_dict['param_name'] = 'vk_token'
-                vk_token_temp_dict['param_description'] = token_user
-                vk_token_temp_dict['param_body'] = vk_token
-                params.append(vk_token_temp_dict)
+                backup_params['vk_token'] = vk_token
+                backup_params['vk_token_user'] = token_user
                 flag_vk_token = 1
 
             if service_name == 'ВКонтакте' and flag_vk_user_id == 0:
-                vk_user_id_temp_dict = {}
-                vk_user_id_temp_dict['param_name'] = 'vk_user_id'
-                vk_user_id_temp_dict['param_description'] = 'Идентификатор ' \
+                backup_params['vk_user_id'] = vk_user_id
+                backup_params['vk_user_id_description'] = 'Идентификатор ' \
                                                             'пользователя ' \
                                                             'ВКонтакте'
-                vk_user_id_temp_dict['param_body'] = vk_user_id
-                params.append(vk_user_id_temp_dict)
                 flag_vk_user_id = 1
 
             if service_name == 'Яндекс.Диск' and flag_ya_token == 0:
-                ya_token_temp_dict = {}
-                ya_token_temp_dict['param_name'] = 'ya_token'
-                ya_token_temp_dict['param_description'] = token_user
-                ya_token_temp_dict['param_body'] = ya_token
-                params.append(ya_token_temp_dict)
+                backup_params['ya_token'] = ya_token
+                backup_params['ya_token_user'] = token_user
                 flag_ya_token = 1
 
         with open('module_config.py', 'w', encoding='utf-8') as config:
-            config.writelines('params = [\n')
-            for param in params:
-                config.writelines(f'{param},\n')
-            config.writelines(']\n')
+            config.writelines('backup_params = {\n')
+            for key, value in backup_params.items():
+                config.writelines(f'"{key}": "{value}",\n')
+            config.writelines('}\n')
 
         error = 0
 
@@ -196,8 +187,8 @@ def get_vk_photos():
     """
     base_url = 'https://api.vk.com/method/photos.get'
     request_parameters = {
-        'access_token': params[6]['param_body'],
-        'owner_id': params[7]['param_body'],
+        'access_token': backup_params['vk_token'],
+        'owner_id': backup_params['vk_user_id'],
         'album_id': 'profile',
         'extended': '1',
         'photo_sizes': '1',
@@ -213,8 +204,8 @@ def get_vk_photos():
         exit()
 
     if response.status_code == 200:
-        module_service.write_json(params[0]['param_body'], response.json())
-        print(f'Ответ сервиса получен, сохранен в файле {params[0]["param_body"]}')
+        module_service.write_json(backup_params['vk_photos_json'], response.json())
+        print(f'Ответ сервиса получен, сохранен в файле {backup_params["vk_photos_json"]}')
     else:
         print('Ответ сервиса:')
         pprint(response.json())

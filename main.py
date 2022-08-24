@@ -4,7 +4,7 @@
 import module_vk
 import module_ya
 import module_service
-from module_config import params
+from module_config import backup_params
 
 CONFIG_FILE = 'module_config.py'
 
@@ -42,5 +42,5 @@ if __name__ == '__main__':
     module_ya.upload_vk_photos_to_yadisk()
 
     print(f'Список загруженных фото с размерами см. в файле '
-          f'{params[2]["param_body"]}')
+          f'{backup_params["upload_result_json"]}')
     print('Работа программы завершена')

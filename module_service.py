@@ -6,7 +6,7 @@ import requests
 import time
 import json
 import os
-from module_config import params
+from module_config import backup_params
 
 
 def write_json(filename, data):
@@ -32,10 +32,11 @@ def get_max_size_photos():
 
     :return: None
     """
-    items = json.load(open(params[0]['param_body']))['response']['items']
+    items = json.load(open(backup_params['vk_photos_json']))['response']['items']
     items_quantity = len(items)
     print(f'Получена информация о {items_quantity} фото, '
-          f'данные записаны в файл {params[0]["param_body"]}')
+          f'данные записаны в файл {backup_params["vk_photos_json"]}')
+
     my_timeout()
     max_size_photos = []
     likes = []
@@ -65,9 +66,9 @@ def get_max_size_photos():
                 max_size['photo_url'] = size['url']
         max_size_photos.append(max_size)
 
-    write_json(params[1]['param_body'], max_size_photos)
+    write_json(backup_params['vk_max_size_photos_json'], max_size_photos)
     print(f'Получены ссылки на фото с самым большим разрешением, '
-          f'записаны в файл {params[1]["param_body"]}')
+          f'записаны в файл {backup_params["vk_max_size_photos_json"]}')
     my_timeout()
     return
 
@@ -82,34 +83,34 @@ def download_vk_photos_to_local_disk():
 
     :return: None
     """
-    max_size_photos = json.load(open(params[1]['param_body']))
+    max_size_photos = json.load(open(backup_params["vk_max_size_photos_json"]))
     try:
-        os.mkdir(params[3]['param_body'])
+        os.mkdir(backup_params['dir_for_vk_photos'])
     except FileExistsError:
         print(f'Папка для записи фотографий на локальный диск '
-              f'{params[3]["param_body"]} уже существует')
+              f'{backup_params["dir_for_vk_photos"]} уже существует')
     else:
         print(f'Создана папка для записи фотографий на локальный диск '
-              f'{params[3]["param_body"]}')
+              f'{backup_params["dir_for_vk_photos"]}')
     my_timeout()
 
     # Проходим по словарю max_size_photo с сохраненными максимальными
     # размерами фото и загружаем каждое фото на локальный диск
     print(f'Начата загрузка фото на локальный диск в папку '
-          f'{params[3]["param_body"]}')
+          f'{backup_params["dir_for_vk_photos"]}')
     print(f'Согласно параметрам настроек программы будет загружено не более'
-          f' {params[5]["param_body"]} фото в порядке их получения от сервиса ВК')
+          f' {backup_params["photo_quantity"]} фото в порядке их получения от сервиса ВК')
     my_timeout()
     # Счетчик для количества загруженных фото (по условию задачи
     # по умолчанию - не более 5-ти.
     # Параметр photo_quantity задается в requirements.txt
     ph_quantity = 0
     for max_size_photo in max_size_photos:
-        if ph_quantity == params[5]["param_body"]:
+        if ph_quantity == backup_params["photo_quantity"]:
             break
         response = requests.get(max_size_photo['photo_url'], stream=True)
         if response.status_code == 200:
-            with open((params[3]["param_body"] + max_size_photo['photo_name']
+            with open((backup_params["dir_for_vk_photos"] + max_size_photo['photo_name']
                        + '.jpg'), 'bw') as file:
                 for chunk in response.iter_content(4096):
                     file.write(chunk)
@@ -119,7 +120,7 @@ def download_vk_photos_to_local_disk():
 
     print()
     print(f'{len(max_size_photos)} фото загружено на локальный диск в папку '
-          f'{params[3]["param_body"]}')
+          f'{backup_params["dir_for_vk_photos"]}')
     print()
     return
 
